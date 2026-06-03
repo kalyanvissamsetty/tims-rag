@@ -27,28 +27,28 @@ export default async function AdminPage() {
   const ocrDocuments = typedDocuments.filter((document) => document.metadata?.extraction_method === "ocr").length;
 
   return (
-    <div className="space-y-6 p-4 lg:p-6">
+    <div className="space-y-5 p-3 sm:space-y-6 sm:p-4 lg:p-6">
       {!readiness.adminReady ? <SetupReadinessCard readiness={readiness} /> : null}
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="p-5">
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card className="p-4 sm:p-5">
           <p className="text-sm text-muted-foreground">Ready documents</p>
-          <p className="mt-3 font-[family-name:var(--font-heading)] text-4xl font-semibold">{readyDocuments}</p>
+          <p className="mt-3 font-[family-name:var(--font-heading)] text-3xl font-semibold sm:text-4xl">{readyDocuments}</p>
           <Badge className="mt-4">Indexed knowledge</Badge>
         </Card>
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <p className="text-sm text-muted-foreground">Registered users</p>
-          <p className="mt-3 font-[family-name:var(--font-heading)] text-4xl font-semibold">{userCount ?? 0}</p>
+          <p className="mt-3 font-[family-name:var(--font-heading)] text-3xl font-semibold sm:text-4xl">{userCount ?? 0}</p>
           <Badge className="mt-4">Auth enabled</Badge>
         </Card>
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <p className="text-sm text-muted-foreground">Chat sessions</p>
-          <p className="mt-3 font-[family-name:var(--font-heading)] text-4xl font-semibold">{sessionCount ?? 0}</p>
+          <p className="mt-3 font-[family-name:var(--font-heading)] text-3xl font-semibold sm:text-4xl">{sessionCount ?? 0}</p>
           <Badge className="mt-4">History stored</Badge>
         </Card>
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <p className="text-sm text-muted-foreground">OCR processed</p>
-          <p className="mt-3 font-[family-name:var(--font-heading)] text-4xl font-semibold">{ocrDocuments}</p>
+          <p className="mt-3 font-[family-name:var(--font-heading)] text-3xl font-semibold sm:text-4xl">{ocrDocuments}</p>
           <Badge className="mt-4">Scanned docs</Badge>
         </Card>
       </div>

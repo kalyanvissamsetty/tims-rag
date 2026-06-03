@@ -46,11 +46,11 @@ export function DocumentUploader({ disabled = false }: { disabled?: boolean }) {
   }
 
   return (
-    <Card className="p-6">
+    <Card className="p-4 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">Knowledge ingestion</p>
-          <h2 className="mt-3 font-[family-name:var(--font-heading)] text-2xl font-semibold">Upload source files</h2>
+          <h2 className="mt-3 font-[family-name:var(--font-heading)] text-xl font-semibold sm:text-2xl">Upload source files</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
             Add PDFs, DOCX Word files, PPTX PowerPoint files, Markdown, text documents, or images. Table-heavy files now use layout-aware extraction so rows, headers, and slide sections survive retrieval much better.
           </p>

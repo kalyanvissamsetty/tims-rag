@@ -161,17 +161,17 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   return (
-    <Card className="w-full max-w-md p-8">
+    <Card className="w-full max-w-md p-4 sm:p-8">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-primary">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-primary sm:text-sm">
           {mode === "signup" ? "Create your Account" : "Welcome back"}
         </p>
-        <h1 className="mt-4 font-[family-name:var(--font-heading)] text-3xl font-semibold">
-          {mode === "signup" ? "" : "Sign in to TIMS AI Studio"}
+        <h1 className="mt-3 font-[family-name:var(--font-heading)] text-xl font-semibold sm:mt-4 sm:text-3xl">
+          {mode === "signup" ? "Start your workspace" : "Sign in to TIMS AI Studio"}
         </h1>
       </div>
 
-      <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+      <form className="mt-5 space-y-4 sm:mt-8 sm:space-y-5" onSubmit={handleSubmit}>
         {mode === "signup" ? (
           <div className="space-y-2">
             <Label htmlFor="fullName">Full name</Label>
@@ -212,9 +212,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 Password requirements
               </p>
-              <div className="mt-2 grid gap-x-5 gap-y-2 sm:grid-cols-2">
+              <div className="mt-2 grid gap-x-4 gap-y-2 sm:grid-cols-2">
                 {passwordRuleResults.map((rule) => (
-                  <div key={rule.id} className="flex items-center gap-2 text-sm">
+                  <div key={rule.id} className="flex items-center gap-2 text-xs sm:text-sm">
                     {rule.satisfied ? (
                       <Check className="h-4 w-4 shrink-0 text-emerald-600" />
                     ) : (
@@ -235,7 +235,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         </Button>
       </form>
 
-      <p className="mt-4 text-center text-sm text-muted-foreground">
+      <p className="mt-4 text-center text-xs text-muted-foreground sm:text-sm">
         {mode === "signup" ? (
           <>
             Already have an account? <Link href="/login" className="font-semibold text-primary">Sign in</Link>

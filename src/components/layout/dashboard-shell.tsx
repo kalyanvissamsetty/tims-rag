@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BrainCircuit, PanelLeft } from "lucide-react";
+import { BrainCircuit } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/components/layout/sign-out-button";
@@ -16,22 +16,7 @@ export function DashboardShell({ profile, children }: { profile: Profile; childr
   return (
     <div className="h-screen overflow-hidden bg-background">
       {isChatRoute ? (
-        <div className="flex h-full min-h-0 flex-col">
-          <div className="flex items-center justify-between border-b border-border/60 bg-background/85 px-5 py-4 backdrop-blur lg:hidden">
-            <div>
-              <div className="flex items-center gap-2">
-                <PanelLeft className="h-4 w-4 text-primary" />
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">TIMS AI Studio</p>
-              </div>
-              <p className="text-xs text-muted-foreground">{profile.role === "admin" ? "Admin access" : "Viewer access"}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <SignOutButton compact />
-            </div>
-          </div>
-          <div className="min-h-0 flex-1">{children}</div>
-        </div>
+        <div className="h-full min-h-0">{children}</div>
       ) : (
         <div className="mx-auto flex h-full max-w-[1600px] gap-0 bg-background">
           <aside className="hidden w-[278px] shrink-0 border-r border-white/8 bg-[linear-gradient(180deg,rgba(14,20,31,0.98),rgba(9,14,24,0.98))] text-white lg:flex lg:flex-col">
@@ -76,13 +61,10 @@ export function DashboardShell({ profile, children }: { profile: Profile; childr
           </aside>
 
           <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[linear-gradient(180deg,rgba(252,250,245,1),rgba(245,246,249,1))] dark:bg-[linear-gradient(180deg,rgba(28,31,46,1),rgba(24,28,41,1))]">
-            <div className="flex items-center justify-between border-b border-border/60 bg-background/80 px-5 py-4 backdrop-blur lg:hidden">
+            <div className="flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur sm:px-5 sm:py-4 lg:hidden">
               <div>
-                <div className="flex items-center gap-2">
-                  <PanelLeft className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">TIMS AI Studio</p>
-                </div>
-                <p className="text-xs text-muted-foreground">{profile.role === "admin" ? "Admin access" : "Viewer access"}</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">TIMS AI Studio</p>
+                <p className="text-xs text-muted-foreground">{profile.role === "admin" ? "Admin access" : "Team workspace"}</p>
               </div>
               <div className="flex items-center gap-2">
                 <ThemeToggle />

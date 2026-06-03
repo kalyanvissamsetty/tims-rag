@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Copy, Ellipsis, Loader2, MessageSquarePlus, Pencil, SendHorizontal, Sparkles, Square, Trash2, User2 } from "lucide-react";
+import type { ReactNode } from "react";
+import { Check, ChevronDown, Copy, Ellipsis, Loader2, Menu, MessageSquarePlus, Pencil, SendHorizontal, Sparkles, Square, Trash2, User2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { SignOutButton } from "@/components/layout/sign-out-button";
@@ -41,6 +42,22 @@ type StreamEvent =
 
 
 const COLLAPSE_THRESHOLD = 360;
+
+function renderInlineFormatting(text: string): ReactNode[] {
+  const segments = text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+
+  return segments.map((segment, index) => {
+    if (segment.startsWith("**") && segment.endsWith("**")) {
+      return (
+        <strong key={`strong-${index}`} className="font-semibold text-foreground">
+          {segment.slice(2, -2)}
+        </strong>
+      );
+    }
+
+    return segment;
+  });
+}
 
 function normalizeAssistantContent(content: string) {
   return content
@@ -86,9 +103,20 @@ function renderAssistantContent(content: string) {
       return (
         <ul key={`block-${index}`} className="space-y-2 pl-5 text-[15px] leading-8 text-foreground">
           {bulletLines.map((line, lineIndex) => (
-            <li key={`bullet-${index}-${lineIndex}`}>{line.replace(/^-\s+/, "")}</li>
+            <li key={`bullet-${index}-${lineIndex}`}>{renderInlineFormatting(line.replace(/^-\s+/, ""))}</li>
           ))}
         </ul>
+      );
+    }
+
+    const numberedLines = lines.filter((line) => /^\d+\.\s+/.test(line));
+    if (numberedLines.length === lines.length) {
+      return (
+        <ol key={`block-${index}`} className="space-y-3 pl-6 text-[15px] leading-8 text-foreground">
+          {numberedLines.map((line, lineIndex) => (
+            <li key={`numbered-${index}-${lineIndex}`}>{renderInlineFormatting(line.replace(/^\d+\.\s+/, ""))}</li>
+          ))}
+        </ol>
       );
     }
 
@@ -105,7 +133,7 @@ function renderAssistantContent(content: string) {
 
     return (
       <p key={`block-${index}`} className="whitespace-pre-wrap break-words text-[15px] leading-8 text-foreground [overflow-wrap:anywhere]">
-        {lines.join("\n")}
+        {renderInlineFormatting(lines.join("\n"))}
       </p>
     );
   });
@@ -140,6 +168,7 @@ export function ChatWorkspace({
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesViewportRef = useRef<HTMLDivElement | null>(null);
@@ -207,6 +236,15 @@ export function ChatWorkspace({
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
+  }
+
+  function startNewChat() {
+    setSelectedSessionId(null);
+    setMessages([]);
+    setMobileSidebarOpen(false);
+    setOpenMenuSessionId(null);
+    setMenuPosition(null);
+    focusComposer();
   }
 
   async function sendMessage() {
@@ -349,6 +387,7 @@ export function ChatWorkspace({
   async function loadSession(sessionId: string) {
     if (loading) return;
     setSelectedSessionId(sessionId);
+    setMobileSidebarOpen(false);
     setLoading(true);
 
     try {
@@ -470,32 +509,42 @@ export function ChatWorkspace({
     }
 
     const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 132;
+    const menuHeight = 110;
     setOpenMenuSessionId(sessionId);
     setMenuPosition({
-      top: rect.top,
-      left: rect.right + 8
+      top: Math.min(rect.top, window.innerHeight - menuHeight - 12),
+      left: Math.min(rect.right + 8, window.innerWidth - menuWidth - 12)
     });
   }
 
-  return (
-    <div className="grid h-full min-h-0 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className="relative z-30 hidden min-h-0 overflow-visible border-r border-white/8 bg-[linear-gradient(180deg,rgba(14,20,31,0.98),rgba(9,14,24,0.98))] text-white lg:flex lg:flex-col">
-        <div className="p-4">
+  function renderSidebar(isMobile = false) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex items-center gap-3 border-b border-white/10 px-4 py-4">
           <Button
             type="button"
-            className="w-full justify-start rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+            className="flex-1 justify-start rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20"
             disabled={loading}
-            onClick={() => {
-              setSelectedSessionId(null);
-              setMessages([]);
-            }}
+            onClick={startNewChat}
           >
             <MessageSquarePlus className="mr-2 h-4 w-4" />
             New chat
           </Button>
+          {isMobile ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-2xl text-white hover:bg-white/10 hover:text-white"
+              onClick={() => setMobileSidebarOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-visible px-3 pb-4">
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-visible px-3 pb-4 pt-3">
           {sessions.length ? (
             sessions.map((session) => (
               <div
@@ -505,7 +554,7 @@ export function ChatWorkspace({
                   selectedSessionId === session.id ? "bg-white/10" : "hover:bg-white/6"
                 } ${loading ? "opacity-60" : ""}`}
               >
-                <div className="flex items-start gap-2 px-4 py-3">
+                <div className="flex items-start gap-2 px-3 py-3 sm:px-4">
                   {renamingSessionId === session.id ? (
                     <div className="min-w-0 flex-1">
                       <input
@@ -541,7 +590,7 @@ export function ChatWorkspace({
                         onClick={() => loadSession(session.id)}
                         className="min-w-0 flex-1 text-left"
                       >
-                        <p className="text-sm font-medium text-white">{truncate(session.title, 26)}</p>
+                        <p className="text-sm font-medium text-white">{truncate(session.title, isMobile ? 22 : 26)}</p>
                         <p className="mt-1 text-xs text-white/45">{formatDate(session.updated_at)}</p>
                       </button>
                       <button
@@ -567,80 +616,68 @@ export function ChatWorkspace({
         </div>
 
         <div className="border-t border-white/10 p-4">
-        
           <div className="rounded-[22px] border border-white/10 bg-white/5 p-3.5">
-            
-            
-            <div className="pt-2.5">
+            <div className="pt-1">
               <p className="truncate font-medium text-white">{profile.full_name ?? profile.email}</p>
               <p className="truncate text-sm text-white/60">{profile.email}</p>
             </div>
             {profile.role === "admin" ? (
-              <>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="mt-3 h-9 w-full justify-start rounded-xl border-white/12 bg-white/5 px-3 text-sm text-white hover:bg-white/10 hover:text-white"
-                >
-                  <Link href="/admin">Open Admin Panel</Link>
-                </Button>
-
-              </>
+              <Button
+                asChild
+                variant="outline"
+                className="mt-3 h-9 w-full justify-start rounded-xl border-white/12 bg-white/5 px-3 text-sm text-white hover:bg-white/10 hover:text-white"
+              >
+                <Link href="/admin">Open Admin Panel</Link>
+              </Button>
             ) : null}
             <div className="mt-3 flex items-center gap-2">
               <ThemeToggle className="h-9 w-9 shrink-0 rounded-xl border-white/12 bg-white/5 text-white hover:bg-white/10 hover:text-white" />
               <SignOutButton className="h-9 rounded-xl border-white/12 bg-white/5 px-3 text-sm text-white hover:bg-white/10 hover:text-white" />
             </div>
-            
           </div>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative grid h-full min-h-0 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div
+        className={`fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px] transition lg:hidden ${
+          mobileSidebarOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setMobileSidebarOpen(false)}
+      />
+      <aside className="relative z-30 hidden min-h-0 overflow-visible border-r border-white/8 bg-[linear-gradient(180deg,rgba(14,20,31,0.98),rgba(9,14,24,0.98))] text-white lg:flex lg:flex-col">
+        {renderSidebar()}
       </aside>
-
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-[86vw] max-w-[340px] border-r border-white/8 bg-[linear-gradient(180deg,rgba(14,20,31,0.98),rgba(9,14,24,0.98))] text-white shadow-2xl shadow-black/30 transition-transform duration-300 lg:hidden ${
+          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {renderSidebar(true)}
+      </aside>
       <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="shrink-0 border-b border-border/50 px-5 py-4 lg:px-8">
+        <div className="shrink-0 border-b border-border/50 px-4 py-3 sm:px-5 lg:px-8 lg:py-4">
           <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4">
-            <div>
+            <div className="flex min-w-0 items-center gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-2xl lg:hidden"
+                onClick={() => setMobileSidebarOpen(true)}
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">TIMS AI Chat</p>
-             
+              <p className="truncate text-sm text-muted-foreground lg:hidden">{sessionLabel}</p>
             </div>
-            {/* <div className="text-right text-xs text-muted-foreground">
-              <p>{responseStyle} mode</p>
-              <p>{allowCitations ? "Citations on" : "Citations hidden"}</p>
-            </div> */}
           </div>
         </div>
 
-        <div ref={messagesViewportRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-6 lg:px-8">
-          <div className="mx-auto mb-6 flex w-full max-w-4xl flex-wrap items-center gap-3 lg:hidden">
-            <Button
-              type="button"
-              className="rounded-2xl"
-              disabled={loading}
-              onClick={() => {
-                setSelectedSessionId(null);
-                setMessages([]);
-              }}
-            >
-              <MessageSquarePlus className="mr-2 h-4 w-4" />
-              New chat
-            </Button>
-            {sessions.slice(0, 3).map((session) => (
-              <button
-                key={session.id}
-                type="button"
-                disabled={loading}
-                onClick={() => loadSession(session.id)}
-                className={`rounded-full border px-4 py-2 text-sm transition ${
-                  selectedSessionId === session.id
-                    ? "border-primary/35 bg-primary/10 text-foreground"
-                    : "border-border/70 bg-background/55 text-muted-foreground hover:bg-background"
-                }`}
-              >
-                {truncate(session.title, 22)}
-              </button>
-            ))}
-          </div>
-
+        <div ref={messagesViewportRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-5 lg:px-8 lg:py-6">
           {messages.length ? (
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
               
@@ -650,8 +687,8 @@ export function ChatWorkspace({
                   className={`group flex min-w-0 ${message.role === "assistant" ? "justify-start" : "justify-end"}`}
                 >
                   <div
-                    className={`flex items-start gap-3 ${
-                      message.role === "assistant" ? "max-w-[85%]" : "max-w-[78%]"
+                    className={`flex items-start gap-2 sm:gap-3 ${
+                      message.role === "assistant" ? "max-w-[96%] sm:max-w-[88%] lg:max-w-[85%]" : "max-w-[88%] sm:max-w-[80%] lg:max-w-[78%]"
                     } ${
                       message.role === "assistant" ? "" : "flex-row-reverse"
                     }`}
@@ -675,7 +712,7 @@ export function ChatWorkspace({
                       return (
                         <>
                     <span
-                      className={`mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                      className={`mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:h-8 sm:w-8 ${
                         message.role === "assistant"
                           ? "bg-primary/10 text-primary"
                           : "bg-primary text-primary-foreground"
@@ -687,7 +724,7 @@ export function ChatWorkspace({
                       className={`min-w-0 flex-1 ${
                         message.role === "assistant"
                           ? ""
-                          : "rounded-[22px] border border-primary/15 bg-primary/8 px-4 py-3 shadow-sm"
+                          : "rounded-[22px] border border-primary/15 bg-primary/8 px-3 py-2.5 shadow-sm sm:px-4 sm:py-3"
                       }`}
                     >
                       {message.role === "assistant" ? (
@@ -696,7 +733,7 @@ export function ChatWorkspace({
                         </div>
                       ) : (
                         <p
-                          className={`whitespace-pre-wrap break-words text-[15px] leading-8 text-foreground [overflow-wrap:anywhere] ${
+                          className={`whitespace-pre-wrap break-words text-[14px] leading-7 text-foreground [overflow-wrap:anywhere] sm:text-[15px] sm:leading-8 ${
                             shouldCollapse && !isExpanded ? "line-clamp-5" : ""
                           }`}
                         >
@@ -729,14 +766,14 @@ export function ChatWorkspace({
               ))}
             </div>
           ) : (
-            <div className="mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-center py-10 text-center">
-              <div className="inline-flex rounded-3xl border border-border/60 bg-background/70 p-5 text-primary shadow-sm">
+            <div className="mx-auto flex h-full w-full max-w-4xl flex-col items-center justify-center px-2 py-8 text-center sm:px-0 sm:py-10">
+              <div className="inline-flex rounded-3xl border border-border/60 bg-background/70 p-4 text-primary shadow-sm sm:p-5">
                 <Sparkles className="h-8 w-8" />
               </div>
-              <h2 className="mt-6 font-[family-name:var(--font-heading)] text-5xl font-semibold tracking-tight lg:text-6xl">
+              <h2 className="mt-5 font-[family-name:var(--font-heading)] text-3xl font-semibold tracking-tight sm:text-4xl lg:mt-6 lg:text-6xl">
                 How can I help you today?
               </h2>
-              <p className="mt-4 max-w-2xl text-base leading-8 text-muted-foreground">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base sm:leading-8">
                 Ask questions against the uploaded knowledge base. TIMS AI will stay grounded in documents provided and tell you when the source material does not support an answer.
               </p>
               
@@ -747,9 +784,9 @@ export function ChatWorkspace({
           )}
         </div>
 
-        <div className="shrink-0 border-t border-border/50 px-4 pb-3 pt-3 lg:px-8">
+        <div className="shrink-0 border-t border-border/50 px-3 pb-3 pt-3 sm:px-4 lg:px-8">
           <div className="mx-auto w-full max-w-4xl">
-            <div className="rounded-[26px] border border-border/70 bg-background/92 px-4 py-2 shadow-sm backdrop-blur">
+            <div className="rounded-[24px] border border-border/70 bg-background/92 px-3 py-2 shadow-sm backdrop-blur sm:rounded-[26px] sm:px-4">
               <div className="flex items-end gap-2">
                 <div className="min-w-0 flex-1">
                   <Textarea
@@ -767,23 +804,23 @@ export function ChatWorkspace({
                     }}
                     placeholder={disabled ? "Finish environment setup to enable chat." : "Send a message"}
                     rows={1}
-                    className="max-h-44 min-h-[32px] w-full resize-none overflow-y-auto border-0 bg-transparent px-1 py-1.5 text-base leading-6 focus:border-0"
+                    className="max-h-44 min-h-[32px] w-full resize-none overflow-y-auto border-0 bg-transparent px-1 py-1 text-[15px] leading-6 focus:border-0 sm:py-1.5 sm:text-base"
                   />
                 </div>
                 {loading ? (
-                  <Button type="button" variant="outline" className="h-10 shrink-0 rounded-2xl px-4" onClick={stopStreaming}>
+                  <Button type="button" variant="outline" className="h-10 shrink-0 rounded-2xl px-3 sm:px-4" onClick={stopStreaming}>
                     <Square className="h-4 w-4" />
-                    <span className="ml-2">Stop</span>
+                    <span className="ml-2 hidden sm:inline">Stop</span>
                   </Button>
                 ) : null}
                 <Button
                   type="button"
-                  className="h-10 shrink-0 rounded-2xl px-4"
+                  className="h-10 shrink-0 rounded-2xl px-3 sm:px-4"
                   onClick={sendMessage}
                   disabled={disabled || loading || !prompt.trim()}
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
-                  <span className="ml-2">Send</span>
+                  <span className="ml-2 hidden sm:inline">Send</span>
                 </Button>
               </div>
             </div>
