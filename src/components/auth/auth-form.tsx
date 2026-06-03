@@ -1,0 +1,251 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
+
+import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+const PASSWORD_RULES = [
+  {
+    id: "length",
+    label: "At least 8 characters",
+    test: (value: string) => value.length >= 8
+  },
+  {
+    id: "uppercase",
+    label: "One uppercase letter",
+    test: (value: string) => /[A-Z]/.test(value)
+  },
+  {
+    id: "lowercase",
+    label: "One lowercase letter",
+    test: (value: string) => /[a-z]/.test(value)
+  },
+  {
+    id: "number",
+    label: "One number",
+    test: (value: string) => /\d/.test(value)
+  },
+  {
+    id: "special",
+    label: "One special character",
+    test: (value: string) => /[^A-Za-z0-9]/.test(value)
+  },
+  {
+    id: "spaces",
+    label: "No spaces",
+    test: (value: string) => !/\s/.test(value)
+  }
+] as const;
+
+function resolveAuthRedirectUrl() {
+  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  const appOrigin =
+    configuredUrl && configuredUrl.length > 0
+      ? configuredUrl
+      : typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost:3000";
+
+  return new URL("/login", appOrigin).toString();
+}
+
+export function AuthForm({ mode }: { mode: "login" | "signup" }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
+
+  const passwordRuleResults = PASSWORD_RULES.map((rule) => ({
+    ...rule,
+    satisfied: rule.test(passwordValue)
+  }));
+  const isSignupPasswordValid = passwordRuleResults.every((rule) => rule.satisfied);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const supabase = createClient();
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+    const fullName = String(formData.get("fullName") ?? "").trim();
+
+    setLoading(true);
+
+    if (mode === "signup") {
+      if (!isSignupPasswordValid) {
+        toast.error("Please satisfy all password requirements before creating the account.");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: resolveAuthRedirectUrl(),
+          data: {
+            full_name: fullName
+          }
+        }
+      });
+
+      if (error) {
+        toast.error(error.message);
+        setLoading(false);
+        return;
+      }
+
+      const user = data.user;
+      const identities = user?.identities ?? [];
+      const looksLikeExistingAccount = !data.session && identities.length === 0;
+
+      if (looksLikeExistingAccount) {
+        toast.error("An account with this email already exists. Please sign in instead.");
+        setLoading(false);
+        return;
+      }
+
+      if (!data.session) {
+        toast.success("Account created. Check your email to confirm your account before signing in.");
+        router.push("/login");
+        router.refresh();
+        setLoading(false);
+        return;
+      }
+
+      toast.success("Account created. You can start chatting now.");
+      router.push("/chat");
+      router.refresh();
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      toast.error(error.message);
+      setLoading(false);
+      return;
+    }
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    let destination = "/chat";
+
+    if (user?.id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profile?.role === "admin") {
+        destination = "/admin";
+      }
+    }
+
+    toast.success("Welcome back.");
+    router.push(destination);
+    router.refresh();
+    setLoading(false);
+  }
+
+  return (
+    <Card className="w-full max-w-md p-8">
+      <div>
+        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-primary">
+          {mode === "signup" ? "Create your Account" : "Welcome back"}
+        </p>
+        <h1 className="mt-4 font-[family-name:var(--font-heading)] text-3xl font-semibold">
+          {mode === "signup" ? "" : "Sign in to TIMS AI Studio"}
+        </h1>
+      </div>
+
+      <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+        {mode === "signup" ? (
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full name</Label>
+            <Input id="fullName" name="fullName" placeholder="e.g. Kalyan V" required />
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" name="email" type="email" placeholder="team@tims.group" required />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <div className="relative">
+            <Input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              required
+              minLength={8}
+              className="pr-12"
+              value={passwordValue}
+              onChange={(event) => setPasswordValue(event.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center text-muted-foreground transition hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {mode === "signup" && passwordValue.length > 0 ? (
+            <div className="rounded-2xl border border-border/70 bg-secondary/30 p-3">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                Password requirements
+              </p>
+              <div className="mt-2 grid gap-x-5 gap-y-2 sm:grid-cols-2">
+                {passwordRuleResults.map((rule) => (
+                  <div key={rule.id} className="flex items-center gap-2 text-sm">
+                    {rule.satisfied ? (
+                      <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                    ) : (
+                      <X className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className={rule.satisfied ? "text-foreground" : "text-muted-foreground"}>
+                      {rule.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <Button className="w-full" size="lg" disabled={loading || (mode === "signup" && !isSignupPasswordValid)}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "signup" ? "Create account" : "Sign in"}
+        </Button>
+      </form>
+
+      <p className="mt-4 text-center text-sm text-muted-foreground">
+        {mode === "signup" ? (
+          <>
+            Already have an account? <Link href="/login" className="font-semibold text-primary">Sign in</Link>
+          </>
+        ) : (
+          <>
+            No account yet? <Link href="/signup" className="font-semibold text-primary">Create one</Link>
+          </>
+        )}
+      </p>
+    </Card>
+  );
+}

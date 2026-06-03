@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 48 38% 97%;
+  --foreground: 220 45% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 45% 11%;
+  --border: 210 24% 84%;
+  --input: 210 24% 84%;
+  --primary: 195 82% 40%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 45 55% 92%;
+  --secondary-foreground: 220 45% 11%;
+  --muted: 40 22% 91%;
+  --muted-foreground: 220 14% 35%;
+  --accent: 30 92% 91%;
+  --accent-foreground: 220 45% 11%;
+  --danger: 0 72% 55%;
+  --danger-foreground: 0 0% 100%;
+  --selection-bg: 195 88% 74%;
+  --selection-foreground: 220 45% 11%;
+}
+
+.dark {
+  --background: 214 34% 9%;
+  --foreground: 210 40% 96%;
+  --card: 213 29% 13%;
+  --card-foreground: 210 40% 96%;
+  --border: 214 18% 22%;
+  --input: 214 18% 22%;
+  --primary: 191 74% 55%;
+  --primary-foreground: 214 34% 9%;
+  --secondary: 213 19% 18%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 214 18% 16%;
+  --muted-foreground: 215 20% 70%;
+  --accent: 24 42% 20%;
+  --accent-foreground: 210 40% 96%;
+  --danger: 0 65% 52%;
+  --danger-foreground: 0 0% 100%;
+  --selection-bg: 191 70% 38%;
+  --selection-foreground: 210 40% 98%;
+}
+
+* {
+  @apply border-border;
+}
+
+html,
+body {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+button,
+a,
+svg,
+img {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+body {
+  @apply min-h-screen bg-background text-foreground antialiased;
+  background-image:
+    radial-gradient(circle at top left, rgba(8, 145, 178, 0.18), transparent 28%),
+    radial-gradient(circle at 85% 15%, rgba(249, 115, 22, 0.12), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.08), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.08));
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.65), transparent 85%);
+}
+
+::selection {
+  background: hsl(var(--selection-bg));
+  color: hsl(var(--selection-foreground));
+}
+
+::-moz-selection {
+  background: hsl(var(--selection-bg));
+  color: hsl(var(--selection-foreground));
+}
