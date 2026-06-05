@@ -19,19 +19,7 @@ export default async function ChatPage() {
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
-  const selectedSessionId = sessions?.[0]?.id;
-
-  let messages: ChatMessageRecord[] = [];
-
-  if (selectedSessionId) {
-    const { data } = await supabase
-      .from("chat_messages")
-      .select("id, session_id, role, content, sources, created_at")
-      .eq("session_id", selectedSessionId)
-      .order("created_at", { ascending: true });
-
-    messages = (data ?? []) as ChatMessageRecord[];
-  }
+  const messages: ChatMessageRecord[] = [];
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -43,6 +31,7 @@ export default async function ChatPage() {
       <ChatWorkspace
         initialSessions={sessions ?? []}
         initialMessages={messages}
+        initialSelectedSessionId={null}
         profile={{
           full_name: profile?.full_name ?? user.user_metadata?.full_name ?? null,
           email: profile?.email ?? user.email ?? "",

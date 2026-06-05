@@ -154,7 +154,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       }
     }
 
-    toast.success("Welcome back.");
+    toast.success("Signed in successfully.");
     router.push(destination);
     router.refresh();
     setLoading(false);

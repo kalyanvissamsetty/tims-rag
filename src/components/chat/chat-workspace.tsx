@@ -143,6 +143,7 @@ function renderAssistantContent(content: string) {
 export function ChatWorkspace({
   initialSessions,
   initialMessages,
+  initialSelectedSessionId = null,
   profile,
   responseStyle,
   systemPrompt,
@@ -151,6 +152,7 @@ export function ChatWorkspace({
 }: {
   initialSessions: Session[];
   initialMessages: Message[];
+  initialSelectedSessionId?: string | null;
   profile: Pick<Profile, "full_name" | "email" | "role">;
   responseStyle: string;
   systemPrompt: string;
@@ -158,7 +160,7 @@ export function ChatWorkspace({
   disabled?: boolean;
 }) {
   const [sessions, setSessions] = useState(initialSessions);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(initialSessions[0]?.id ?? null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(initialSelectedSessionId);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
