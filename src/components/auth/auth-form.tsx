@@ -132,7 +132,28 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      toast.error(error.message);
+      if (/invalid login credentials/i.test(error.message)) {
+        try {
+          const response = await fetch("/api/auth/account-status", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ email })
+          });
+          const payload = await response.json().catch(() => null);
+
+          if (response.ok && payload?.exists === false) {
+            toast.error("No account exists with this email. Please create an account first.");
+          } else {
+            toast.error("Incorrect email or password.");
+          }
+        } catch {
+          toast.error("Incorrect email or password.");
+        }
+      } else {
+        toast.error(error.message);
+      }
       setLoading(false);
       return;
     }
