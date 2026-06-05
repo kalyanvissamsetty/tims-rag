@@ -17,9 +17,11 @@ export function SignOutButton({ compact = false, className }: { compact?: boolea
     setSigningOut(true);
 
     try {
+      router.replace("/login");
+      router.refresh();
+
       const supabase = createClient();
       await supabase.auth.signOut();
-      router.push("/login");
       router.refresh();
     } finally {
       setSigningOut(false);
@@ -42,10 +44,16 @@ export function SignOutButton({ compact = false, className }: { compact?: boolea
       </Button>
 
       {confirmOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm">
+        <div
+          className={`fixed inset-0 z-[100] flex items-center justify-center px-4 backdrop-blur-sm transition ${
+            signingOut ? "bg-[#0f1117]/92" : "bg-black/55"
+          }`}
+        >
           <div className="w-full max-w-[400px] rounded-[22px] border border-white/8 bg-[#262626] px-6 py-6 text-white shadow-[0_24px_72px_rgba(0,0,0,0.42)]">
             <h3 className="text-[18px] font-medium tracking-tight text-white">Sign out?</h3>
-            <p className="mt-3 text-[14px] leading-7 text-white/82">Are you sure you want to logout?</p>
+            <p className="mt-3 text-[14px] leading-7 text-white/82">
+              {signingOut ? "Signing you out securely..." : "Are you sure you want to logout?"}
+            </p>
             <div className="mt-7 flex items-center justify-end gap-3">
               <Button
                 type="button"
