@@ -14,7 +14,7 @@ export const maxDuration = 60;
 
 const chatSchema = z.object({
   sessionId: z.string().uuid().nullable().optional(),
-  message: z.string().min(2)
+  message: z.string().trim().min(2)
 });
 
 const MEMORY_WINDOW = 8;
@@ -279,6 +279,10 @@ export async function POST(request: Request) {
       }
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Please enter at least 2 characters before sending." }, { status: 400 });
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to complete chat request." },
       { status: 500 }

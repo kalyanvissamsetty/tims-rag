@@ -40,6 +40,7 @@ type StreamEvent =
   | { type: "error"; error: string; sessionId?: string; sessionTitle?: string }
   | { type: "aborted" };
 
+const MIN_MESSAGE_LENGTH = 2;
 
 const COLLAPSE_THRESHOLD = 360;
 
@@ -178,6 +179,8 @@ export function ChatWorkspace({
     if (!selectedSessionId) return "New conversation";
     return sessions.find((session) => session.id === selectedSessionId)?.title ?? "Conversation";
   }, [selectedSessionId, sessions]);
+  const trimmedPrompt = prompt.trim();
+  const canSendPrompt = trimmedPrompt.length >= MIN_MESSAGE_LENGTH;
 
   function stopStreaming() {
     abortRef.current?.abort();
@@ -248,9 +251,14 @@ export function ChatWorkspace({
   }
 
   async function sendMessage() {
-    if (!prompt.trim() || disabled) return;
+    if (disabled) return;
 
-    const content = prompt.trim();
+    if (!canSendPrompt) {
+      toast.error("Please enter at least 2 characters before sending.");
+      return;
+    }
+
+    const content = trimmedPrompt;
     const optimisticUserMessage: Message = {
       id: crypto.randomUUID(),
       session_id: selectedSessionId ?? "pending",
@@ -797,7 +805,7 @@ export function ChatWorkspace({
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && !event.shiftKey) {
                         event.preventDefault();
-                        if (!loading && !disabled && prompt.trim()) {
+                        if (!loading && !disabled && canSendPrompt) {
                           void sendMessage();
                         }
                       }
@@ -817,7 +825,7 @@ export function ChatWorkspace({
                   type="button"
                   className="h-10 shrink-0 rounded-2xl px-3 sm:px-4"
                   onClick={sendMessage}
-                  disabled={disabled || loading || !prompt.trim()}
+                  disabled={disabled || loading || !canSendPrompt}
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
                   <span className="ml-2 hidden sm:inline">Send</span>
