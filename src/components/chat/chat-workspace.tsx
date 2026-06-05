@@ -75,14 +75,17 @@ function normalizeAssistantContent(content: string) {
 
 function isFormulaBlock(block: string) {
   const compact = block.replace(/\s+/g, " ").trim();
-  return (
-    /[=×÷/+*-]/.test(compact) &&
-    (compact.includes("P =") ||
-      compact.includes("DP") ||
-      compact.includes("Formula") ||
-      /[A-Za-z]\s*=\s*/.test(compact) ||
-      compact.includes("§"))
-  );
+  const wordCount = compact.split(/\s+/).filter(Boolean).length;
+  const mathSymbolCount = compact.match(/[=×÷/+*-]/g)?.length ?? 0;
+  const hasEquation = /(^|[\s(])[A-Za-z]{1,6}\s*=\s*[^=]/.test(compact);
+  const hasStructuredMath = /\\frac|\\sum|\\int|\\sqrt/.test(block);
+  const looksLikeSentence = /[.?!:]/.test(compact) && wordCount > 8;
+
+  if (looksLikeSentence && !hasEquation && !hasStructuredMath) {
+    return false;
+  }
+
+  return hasEquation || hasStructuredMath || (mathSymbolCount >= 3 && wordCount <= 18);
 }
 
 function renderAssistantContent(content: string) {
@@ -110,6 +113,23 @@ function renderAssistantContent(content: string) {
       );
     }
 
+    if (lines.length > 1 && /^[-•]\s+/.test(lines.slice(1).join("\n"))) {
+      return (
+        <div key={`block-${index}`} className="space-y-3">
+          <p className="whitespace-pre-wrap break-words text-[15px] leading-8 text-foreground [overflow-wrap:anywhere]">
+            {renderInlineFormatting(lines[0])}
+          </p>
+          <ul className="space-y-2 pl-5 text-[15px] leading-8 text-foreground">
+            {lines.slice(1).map((line, lineIndex) => (
+              <li key={`mixed-bullet-${index}-${lineIndex}`}>
+                {renderInlineFormatting(line.replace(/^[-•]\s+/, ""))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+
     const numberedLines = lines.filter((line) => /^\d+\.\s+/.test(line));
     if (numberedLines.length === lines.length) {
       return (
@@ -121,14 +141,31 @@ function renderAssistantContent(content: string) {
       );
     }
 
+    if (lines.length > 1 && /^\d+\.\s+/.test(lines.slice(1).join("\n"))) {
+      return (
+        <div key={`block-${index}`} className="space-y-3">
+          <p className="whitespace-pre-wrap break-words text-[15px] leading-8 text-foreground [overflow-wrap:anywhere]">
+            {renderInlineFormatting(lines[0])}
+          </p>
+          <ol className="space-y-3 pl-6 text-[15px] leading-8 text-foreground">
+            {lines.slice(1).map((line, lineIndex) => (
+              <li key={`mixed-numbered-${index}-${lineIndex}`}>
+                {renderInlineFormatting(line.replace(/^\d+\.\s+/, ""))}
+              </li>
+            ))}
+          </ol>
+        </div>
+      );
+    }
+
     if (isFormulaBlock(block)) {
       return (
-        <pre
+        <div
           key={`block-${index}`}
-          className="overflow-x-auto rounded-2xl border border-border/60 bg-muted/45 px-4 py-3 font-mono text-[14px] leading-7 text-foreground"
+          className="rounded-2xl border border-border/60 bg-muted/45 px-4 py-3 font-mono text-[14px] leading-7 text-foreground"
         >
-          {lines.join("\n")}
-        </pre>
+          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{lines.join("\n")}</p>
+        </div>
       );
     }
 

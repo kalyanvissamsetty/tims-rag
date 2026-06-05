@@ -11,7 +11,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
       <div className="flex justify-center lg:order-2">{children}</div>
       <section className="hidden text-center lg:order-1 lg:block lg:text-left">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-primary sm:text-sm">TIMS AI Studio</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-primary sm:text-xl">TIMS AI Studio</p>
         <h1 className="mt-3 max-w-xl font-[family-name:var(--font-heading)] text-2xl font-semibold leading-tight sm:text-4xl lg:mt-6 lg:text-6xl">
           Find answers, summarize documents and discover insights from organizational knowledge.
         </h1>
