@@ -162,6 +162,7 @@ export function ChatWorkspace({
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [switchingSessions, setSwitchingSessions] = useState(false);
   const [expandedMessages, setExpandedMessages] = useState<Record<string, boolean>>({});
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [openMenuSessionId, setOpenMenuSessionId] = useState<string | null>(null);
@@ -393,10 +394,10 @@ export function ChatWorkspace({
   }
 
   async function loadSession(sessionId: string) {
-    if (loading) return;
+    if (loading || switchingSessions) return;
     setSelectedSessionId(sessionId);
     setMobileSidebarOpen(false);
-    setLoading(true);
+    setSwitchingSessions(true);
 
     try {
       const response = await fetch(`/api/chat?sessionId=${sessionId}`);
@@ -410,7 +411,7 @@ export function ChatWorkspace({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load conversation.");
     } finally {
-      setLoading(false);
+      setSwitchingSessions(false);
     }
   }
 
@@ -533,7 +534,7 @@ export function ChatWorkspace({
           <Button
             type="button"
             className="flex-1 justify-start rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-            disabled={loading}
+            disabled={loading || switchingSessions}
             onClick={startNewChat}
           >
             <MessageSquarePlus className="mr-2 h-4 w-4" />
@@ -560,7 +561,7 @@ export function ChatWorkspace({
                 ref={openMenuSessionId === session.id ? menuRef : null}
                 className={`group relative rounded-2xl transition ${
                   selectedSessionId === session.id ? "bg-white/10" : "hover:bg-white/6"
-                } ${loading ? "opacity-60" : ""}`}
+                } ${loading || switchingSessions ? "opacity-60" : ""}`}
               >
                 <div className="flex items-start gap-2 px-3 py-3 sm:px-4">
                   {renamingSessionId === session.id ? (
@@ -594,7 +595,7 @@ export function ChatWorkspace({
                     <>
                       <button
                         type="button"
-                        disabled={loading}
+                        disabled={loading || switchingSessions}
                         onClick={() => loadSession(session.id)}
                         className="min-w-0 flex-1 text-left"
                       >
@@ -686,7 +687,30 @@ export function ChatWorkspace({
         </div>
 
         <div ref={messagesViewportRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-5 lg:px-8 lg:py-6">
-          {messages.length ? (
+          {switchingSessions ? (
+            <div className="mx-auto flex h-full w-full max-w-4xl flex-col justify-center gap-5">
+              <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                Loading conversation...
+              </div>
+              <div className="space-y-4">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className={`flex ${item % 2 === 0 ? "justify-start" : "justify-end"}`}>
+                    <div
+                      className={`w-full max-w-[86%] animate-pulse rounded-[24px] border border-border/60 bg-background/70 p-4 ${
+                        item % 2 === 0 ? "sm:max-w-[74%]" : "sm:max-w-[62%]"
+                      }`}
+                    >
+                      <div className="h-3 w-24 rounded-full bg-muted/80" />
+                      <div className="mt-4 h-3 w-full rounded-full bg-muted/65" />
+                      <div className="mt-2 h-3 w-5/6 rounded-full bg-muted/55" />
+                      <div className="mt-2 h-3 w-3/5 rounded-full bg-muted/45" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : messages.length ? (
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
               
               {messages.map((message) => (
@@ -800,12 +824,12 @@ export function ChatWorkspace({
                   <Textarea
                     ref={textareaRef}
                     value={prompt}
-                    disabled={disabled}
+                    disabled={disabled || switchingSessions}
                     onChange={(event) => setPrompt(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && !event.shiftKey) {
                         event.preventDefault();
-                        if (!loading && !disabled && canSendPrompt) {
+                        if (!loading && !switchingSessions && !disabled && canSendPrompt) {
                           void sendMessage();
                         }
                       }
@@ -825,7 +849,7 @@ export function ChatWorkspace({
                   type="button"
                   className="h-10 shrink-0 rounded-2xl px-3 sm:px-4"
                   onClick={sendMessage}
-                  disabled={disabled || loading || !canSendPrompt}
+                  disabled={disabled || loading || switchingSessions || !canSendPrompt}
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
                   <span className="ml-2 hidden sm:inline">Send</span>
