@@ -91,6 +91,15 @@ body::before {
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.65), transparent 85%);
 }
 
+@keyframes auth-progress {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
 ::selection {
   background: hsl(var(--selection-bg));
   color: hsl(var(--selection-foreground));

@@ -62,6 +62,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [passwordValue, setPasswordValue] = useState("");
+  const [redirectMessage, setRedirectMessage] = useState<string | null>(null);
 
   const passwordRuleResults = PASSWORD_RULES.map((rule) => ({
     ...rule,
@@ -121,10 +122,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         return;
       }
 
+      setRedirectMessage("Opening your workspace...");
       toast.success("Account created. You can start chatting now.");
-      router.push("/chat");
+      router.replace("/chat");
       router.refresh();
-      setLoading(false);
       return;
     }
 
@@ -154,14 +155,27 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       }
     }
 
+    setRedirectMessage(destination === "/admin" ? "Opening admin workspace..." : "Opening your workspace...");
     toast.success("Signed in successfully.");
-    router.push(destination);
+    router.replace(destination);
     router.refresh();
-    setLoading(false);
   }
 
   return (
-    <Card className="w-full max-w-md p-4 sm:p-8">
+    <Card className="relative w-full max-w-md overflow-hidden p-4 sm:p-8">
+      {redirectMessage ? (
+        <div className="absolute inset-0 z-10 flex flex-col justify-center bg-background/96 px-6 backdrop-blur-sm">
+          <div className="mx-auto w-full max-w-sm">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <p className="text-sm font-medium text-foreground sm:text-base">{redirectMessage}</p>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-secondary/70">
+              <div className="h-full w-2/5 animate-[auth-progress_1.15s_ease-in-out_infinite] rounded-full bg-primary" />
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-primary sm:text-sm">
           {mode === "signup" ? "Create your Account" : "Welcome back"}
