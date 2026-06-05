@@ -32,6 +32,14 @@ function looksLikePlaceholderTitle(title: string, firstMessage: string) {
   return normalizedTitle === "new chat" || normalizedTitle === normalizedFirstMessage;
 }
 
+function getFirstUserMessage(
+  recentMessages: Array<Pick<ChatMessageRecord, "role" | "content">>,
+  fallbackMessage: string
+) {
+  const firstUserMessage = recentMessages.find((message) => message.role === "user")?.content?.trim();
+  return firstUserMessage || fallbackMessage;
+}
+
 export async function GET(request: Request) {
   try {
     const user = await requireUser();
@@ -222,8 +230,9 @@ export async function POST(request: Request) {
             let nextSessionTitle = sessionTitle;
 
             const totalMessageCount = recentMessages.length + 2;
+            const firstUserMessage = getFirstUserMessage(recentMessages, body.message);
 
-            if (looksLikePlaceholderTitle(sessionTitle, body.message) && totalMessageCount >= TITLE_MIN_MESSAGE_COUNT) {
+            if (looksLikePlaceholderTitle(sessionTitle, firstUserMessage) && totalMessageCount >= TITLE_MIN_MESSAGE_COUNT) {
               try {
                 const generatedTitle = await generateChatTitle({
                   recentMessages,

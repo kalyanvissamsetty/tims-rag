@@ -472,6 +472,11 @@ export function ChatWorkspace({
       return;
     }
 
+    if (nextTitle.length > 60) {
+      toast.error("Title must be 60 characters or less.");
+      return;
+    }
+
     try {
       const response = await fetch(`/api/chat/${sessionId}`, {
         method: "PATCH",
@@ -608,6 +613,7 @@ export function ChatWorkspace({
                       <input
                         value={renameValue}
                         onChange={(event) => setRenameValue(event.target.value)}
+                        maxLength={60}
                         onKeyDown={(event) => {
                           if (event.key === "Enter") {
                             event.preventDefault();

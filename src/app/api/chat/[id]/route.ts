@@ -45,6 +45,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     return NextResponse.json({ session });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Title must be between 1 and 60 characters." }, { status: 400 });
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to rename conversation." },
       { status: 500 }
