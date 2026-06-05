@@ -69,6 +69,11 @@ textarea,
   user-select: text;
 }
 
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 body {
   @apply min-h-screen bg-background text-foreground antialiased;
   background-image:
