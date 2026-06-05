@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { buildConversationAwareQuestion, buildSystemPrompt } from "@/lib/rag/prompts";
 import { getRagSettings, retrieveRelevantChunks } from "@/lib/rag/retrieve";
-import { analyzeChatRoute, createConversationalAnswer, generateChatTitle, sanitizeAssistantAnswer, streamGroundedAnswer } from "@/lib/rag/openai";
+import { analyzeChatRoute, assessDocumentSupport, createConversationalAnswer, generateChatTitle, sanitizeAssistantAnswer, streamGroundedAnswer } from "@/lib/rag/openai";
 import { truncate } from "@/lib/utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ChatMessageRecord, ChatSource } from "@/types";
@@ -19,6 +19,8 @@ const chatSchema = z.object({
 
 const MEMORY_WINDOW = 8;
 const fallback = "I don’t have enough information in the uploaded documents to answer that yet.";
+const scopeFallback =
+  "I can help with greetings, this app, and questions about the current chat. For factual or advice questions, I can answer only from the uploaded documents.";
 const TITLE_MIN_MESSAGE_COUNT = 4;
 
 function encodeEvent(payload: Record<string, unknown>) {
@@ -141,7 +143,7 @@ export async function POST(request: Request) {
       routeDecision.intent === "document"
         ? await retrieveRelevantChunks(routeDecision.standaloneQuery ?? body.message, settings.top_k)
         : [];
-    const sources: ChatSource[] = routeDecision.intent === "conversation"
+    const sources: ChatSource[] = routeDecision.intent !== "document"
       ? []
       : Array.from(
           new Map(chunks.map((chunk) => [chunk.file_name, { title: chunk.title, fileName: chunk.file_name }])).values()
@@ -169,13 +171,21 @@ export async function POST(request: Request) {
           try {
             send({ type: "meta", sessionId, sessionTitle, sources });
 
-            if (routeDecision.intent === "conversation") {
+            if (
+              routeDecision.intent === "social" ||
+              routeDecision.intent === "chat_memory" ||
+              routeDecision.intent === "product_capability"
+            ) {
               answer = await createConversationalAnswer({
                 recentMessages,
                 currentMessage: body.message,
+                intent: routeDecision.intent,
                 temperature: settings.temperature
               });
               answer = sanitizeAssistantAnswer(answer);
+              send({ type: "delta", delta: answer });
+            } else if (routeDecision.intent === "outside_scope") {
+              answer = sanitizeAssistantAnswer(scopeFallback);
               send({ type: "delta", delta: answer });
             } else if (!chunks.length) {
               answer = sanitizeAssistantAnswer(fallback);
@@ -187,23 +197,35 @@ export async function POST(request: Request) {
                     `[Source ${index + 1}] Title: ${chunk.title}\nFilename: ${chunk.file_name}\nSimilarity: ${chunk.similarity.toFixed(3)}\nExcerpt: ${chunk.content}`
                 )
                 .join("\n\n");
+              const hasDirectSupport = await assessDocumentSupport({
+                question: buildConversationAwareQuestion({
+                  recentMessages,
+                  currentQuestion: body.message
+                }),
+                context
+              });
 
-              answer = await streamGroundedAnswer(
-                {
-                  systemPrompt: buildSystemPrompt(settings, context),
-                  question: buildConversationAwareQuestion({
-                    recentMessages,
-                    currentQuestion: body.message
-                  }),
-                  temperature: settings.temperature
-                },
-                {
-                  signal: request.signal,
-                  onTextDelta(delta) {
-                    send({ type: "delta", delta });
+              if (!hasDirectSupport) {
+                answer = sanitizeAssistantAnswer(fallback);
+                send({ type: "delta", delta: answer });
+              } else {
+                answer = await streamGroundedAnswer(
+                  {
+                    systemPrompt: buildSystemPrompt(settings, context),
+                    question: buildConversationAwareQuestion({
+                      recentMessages,
+                      currentQuestion: body.message
+                    }),
+                    temperature: settings.temperature
+                  },
+                  {
+                    signal: request.signal,
+                    onTextDelta(delta) {
+                      send({ type: "delta", delta });
+                    }
                   }
-                }
-              );
+                );
+              }
             }
 
             if (request.signal.aborted) {

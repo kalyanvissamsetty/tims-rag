@@ -726,7 +726,6 @@ export function ChatWorkspace({
                 <Menu className="h-4 w-4" />
               </Button>
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">TIMS AI Chat</p>
-              <p className="truncate text-sm text-muted-foreground lg:hidden">{sessionLabel}</p>
             </div>
           </div>
         </div>

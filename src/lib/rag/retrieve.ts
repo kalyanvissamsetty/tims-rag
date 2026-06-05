@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createEmbedding } from "@/lib/rag/openai";
 import type { RagSettings } from "@/types";
 
-const MIN_SIMILARITY = 0.15;
+const MIN_SIMILARITY = 0.3;
 
 export async function getRagSettings() {
   const supabase = createAdminClient();

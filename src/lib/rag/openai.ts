@@ -12,9 +12,20 @@ export type GroundedResponseStreamHandlers = {
 const restrictedAnswerFallback = "I can only answer from the uploaded documents, and I don’t have enough information for that question.";
 
 export type ChatRouteDecision = {
-  intent: "conversation" | "document";
+  intent: "social" | "chat_memory" | "product_capability" | "document" | "outside_scope";
   standaloneQuery: string | null;
 };
+
+const APP_CAPABILITY_CONTEXT = [
+  "This app is a document-grounded chat workspace.",
+  "It can answer from uploaded documents when retrieval finds supporting context.",
+  "It should not answer general world-knowledge, health, weather, coding, legal, or advice questions unless those answers are supported by uploaded documents.",
+  "It supports normal social conversation like greetings and thanks.",
+  "It can answer questions about the chat itself, such as previous messages in the current conversation.",
+  "Admins can upload PDF, DOCX, PPTX, TXT, Markdown, PNG, JPEG, and WebP files into the knowledge base.",
+  "Image files can be uploaded by admins as source documents for OCR and retrieval.",
+  "The chat composer itself does not support direct image-message attachments from end users."
+].join(" ");
 
 function getOpenAIClient() {
   assertEnv(["OPENAI_API_KEY"], "OpenAI client");
@@ -55,7 +66,12 @@ export function sanitizeAssistantAnswer(answer: string) {
       trimmed
     );
 
-  if (asksForMoreMaterial || mentionsUnsupportedKnowledge) {
+  const overclaimsGeneralAbility =
+    /\b(i('m| am)\s+here\s+to\s+help\s+with\s+any\s+questions?|whether or not they'?re from uploaded documents|i can assist directly|i can help with general coding questions)\b/i.test(
+      trimmed
+    );
+
+  if (asksForMoreMaterial || mentionsUnsupportedKnowledge || overclaimsGeneralAbility) {
     return restrictedAnswerFallback;
   }
 
@@ -133,12 +149,16 @@ export async function analyzeChatRoute(params: {
         role: "system",
         content: [
           "You are a routing layer for a conversational RAG application.",
-          "Decide whether the user's latest message should be handled as normal conversation or as a document-grounded knowledge request.",
-          "Classify as conversation for greetings, thanks, small talk, UX questions, questions about previous chat messages, and meta questions about the conversation.",
-          "Classify as document for factual questions that should be answered from uploaded documents, even if the user phrases them casually.",
+          "Decide whether the user's latest message should be handled as social chat, chat-memory, product-capability, document-grounded knowledge request, or outside-scope request.",
+          "Classify as social only for greetings, thanks, polite acknowledgements, and brief small talk that does not ask for factual information or advice.",
+          "Classify as chat_memory only for questions explicitly about previous messages in this same conversation.",
+          "Classify as product_capability only for questions about this app's features, limits, uploads, settings, chat behavior, or admin workflow.",
+          "Classify as document for factual questions that should be answered from uploaded documents, even if phrased casually.",
+          "Classify as outside_scope for general world knowledge, weather, health, coding help, legal advice, recommendations, calculations, or topic follow-ups that are not about the app, not about chat memory, and not supported by uploaded documents yet.",
+          "Do not treat a user-provided fact about the outside world as making that topic in-scope. Follow-up advice about such topics is still outside_scope.",
           "If the intent is document, rewrite the latest message into a standalone retrieval query using conversation history only to resolve references.",
           "Return only minified JSON with this exact shape:",
-          '{"intent":"conversation"|"document","standalone_query":string|null}'
+          '{"intent":"social"|"chat_memory"|"product_capability"|"document"|"outside_scope","standalone_query":string|null}'
         ].join(" ")
       },
       {
@@ -162,23 +182,33 @@ export async function analyzeChatRoute(params: {
       };
     }
 
+    if (parsed.intent === "social" || parsed.intent === "chat_memory" || parsed.intent === "product_capability" || parsed.intent === "outside_scope") {
+      return {
+        intent: parsed.intent,
+        standaloneQuery: null
+      };
+    }
+
     return {
-      intent: "conversation",
+      intent: "outside_scope",
       standaloneQuery: null
     };
   } catch {
     const normalized = params.currentMessage.trim().toLowerCase();
-    const conversationalFallback =
-      /^(hi|hii|hello|hey|good morning|good afternoon|good evening|thanks|thank you|ok|okay|cool|great|how are you|how are you doing|how's it going|hows it going|who are you|what can you do)\b/.test(
-        normalized
-      ) ||
+    const socialFallback =
+      /^(hi|hii|hello|hey|good morning|good afternoon|good evening|thanks|thank you|ok|okay|cool|great)\b/.test(normalized);
+    const memoryFallback =
       /\b(last message|previous message|last answer|previous answer|what did you say|what did i ask|summarize this chat|what were we talking about)\b/.test(
+        normalized
+      );
+    const capabilityFallback =
+      /\b(upload|uploads|image|images|pdf|docx|pptx|markdown|txt|admin|chat|citation|citations|source|sources|response style|temperature|top k|settings|login|sign in|signup|sign up|password|rename|delete|conversation title|what can you do|why are you answering|why can'?t you answer)\b/.test(
         normalized
       );
 
     return {
-      intent: conversationalFallback ? "conversation" : "document",
-      standaloneQuery: conversationalFallback ? null : params.currentMessage
+      intent: socialFallback ? "social" : memoryFallback ? "chat_memory" : capabilityFallback ? "product_capability" : "document",
+      standaloneQuery: socialFallback || memoryFallback || capabilityFallback ? null : params.currentMessage
     };
   }
 }
@@ -277,6 +307,7 @@ export async function streamConversationalAnswer(
 export async function createConversationalAnswer(params: {
   recentMessages: Array<Pick<ChatMessageRecord, "role" | "content">>;
   currentMessage: string;
+  intent: "social" | "chat_memory" | "product_capability";
   temperature: number;
 }) {
   const client = getOpenAIClient();
@@ -288,12 +319,15 @@ export async function createConversationalAnswer(params: {
         role: "system",
         content: [
           "You are TIMS AI, a conversational assistant for a document-grounded RAG app.",
-          "You should respond naturally to greetings, thanks, clarifications, UX questions, and chat-history questions.",
-          "You may use prior conversation to answer meta questions about the chat itself.",
-          "If the user asks for external facts, domain knowledge, or factual claims that should come from uploaded documents, do not answer from general knowledge.",
-          "In those cases, respond briefly that you can only answer from the uploaded documents and that the current question is not supported by the available material.",
+          `Allowed intent for this turn: ${params.intent}.`,
+          "You should respond naturally only when the current turn is one of these allowed categories: greetings/thanks, chat-memory questions, or app capability/policy questions.",
+          "You may use prior conversation only to answer meta questions about the chat itself.",
+          `App capability context: ${APP_CAPABILITY_CONTEXT}`,
+          "Never adopt user-provided facts about the outside world as if they are verified knowledge.",
+          "Never continue conversation about weather, health, coding, legal, recommendations, or any other outside topic unless the answer is grounded in uploaded documents.",
+          "If the current message tries to continue an outside topic, respond briefly that you can only answer from uploaded documents or help with this app and the current conversation.",
           "Do not ask the user to upload, share, provide, or reference documents unless the user explicitly asks what to do next.",
-          "Keep casual replies short, warm, and helpful. Do not mention internal implementation unless asked."
+          "Keep allowed replies short, warm, and helpful. Do not mention internal implementation unless asked."
         ].join(" ")
       },
       {
@@ -307,6 +341,40 @@ export async function createConversationalAnswer(params: {
   });
 
   return response.output_text?.trim() || "";
+}
+
+export async function assessDocumentSupport(params: {
+  question: string;
+  context: string;
+}) {
+  const client = getOpenAIClient();
+  const response = await client.responses.create({
+    model: getChatModel(),
+    temperature: 0,
+    input: [
+      {
+        role: "system",
+        content: [
+          "You are a strict relevance gate for a document-grounded chat system.",
+          "Decide whether the provided context directly supports answering the user's question.",
+          "Mark unsupported if the context is weak, only tangentially related, or would require general knowledge, inference, advice, or speculation to answer.",
+          "Return only minified JSON with this exact shape:",
+          '{"supported":true|false,"reason":"short reason"}'
+        ].join(" ")
+      },
+      {
+        role: "user",
+        content: `Question:\n${params.question}\n\nContext:\n${params.context}`
+      }
+    ]
+  });
+
+  try {
+    const parsed = JSON.parse(response.output_text?.trim() ?? "") as { supported?: boolean };
+    return Boolean(parsed.supported);
+  } catch {
+    return false;
+  }
 }
 
 export async function streamGroundedAnswer(
