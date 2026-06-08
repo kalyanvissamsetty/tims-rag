@@ -129,6 +129,18 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       return;
     }
 
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user?.email_confirmed_at) {
+      console.log("email - " + user?.email_confirmed_at);
+      await supabase.auth.signOut();
+      toast.error("Please confirm your email before signing in.");
+      setLoading(false);
+      return;
+    }
+    
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
@@ -158,12 +170,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       return;
     }
 
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
+    
     let destination = "/chat";
-
     if (user?.id) {
       const { data: profile } = await supabase
         .from("profiles")
