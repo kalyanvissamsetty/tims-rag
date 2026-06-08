@@ -12,7 +12,7 @@ export type GroundedResponseStreamHandlers = {
 const restrictedAnswerFallback = "I can only answer from the uploaded documents, and I don’t have enough information for that question.";
 
 export type ChatRouteDecision = {
-  intent: "social" | "chat_memory" | "product_capability" | "document" | "outside_scope";
+  intent: "social" | "chat_memory" | "product_capability" | "document";
   standaloneQuery: string | null;
 };
 
@@ -149,18 +149,16 @@ export async function analyzeChatRoute(params: {
         role: "system",
         content: [
           "You are a routing layer for a conversational RAG application.",
-          "Decide whether the user's latest message should be handled as social chat, chat-memory, product-capability, document-grounded knowledge request, or outside-scope request.",
+          "Decide whether the user's latest message should be handled as social chat, chat-memory, product-capability, or document-grounded knowledge request.",
           "Classify as social only for greetings, thanks, polite acknowledgements, and brief small talk that does not ask for factual information or advice.",
           "Classify as chat_memory only for questions explicitly about previous messages in this same conversation.",
           "Classify as product_capability only for questions about this app's features, limits, uploads, settings, chat behavior, or admin workflow.",
-          "Classify as document for factual questions that should be answered from uploaded documents, even if phrased casually.",
-          "Very important: short domain lookups such as acronyms, component names, definitions, or topic terms like 'What is AIC', 'What is elbow', or 'What is pipeline' should default to document, not outside_scope.",
-          "If the latest message could reasonably be a document-term lookup and it is not explicitly about weather, health, coding, law, recommendations, or general world knowledge, prefer document.",
-          "Classify as outside_scope for general world knowledge, weather, health, coding help, legal advice, recommendations, calculations, or topic follow-ups that are not about the app, not about chat memory, and not supported by uploaded documents yet.",
-          "Do not treat a user-provided fact about the outside world as making that topic in-scope. Follow-up advice about such topics is still outside_scope.",
+          "Classify as document for almost all factual, definitional, procedural, or topic questions, even if phrased casually or even if the question might later prove unsupported by uploaded documents.",
+          "Very important: short domain lookups such as acronyms, component names, definitions, or topic terms like 'What is AIC', 'What is elbow', or 'What is pipeline' should default to document.",
+          "Do not reject world-knowledge, health, weather, coding, legal, recommendation, or advice questions here. Those should still go to document retrieval and be refused later if the uploaded documents do not support them.",
           "If the intent is document, rewrite the latest message into a standalone retrieval query using conversation history only to resolve references.",
           "Return only minified JSON with this exact shape:",
-          '{"intent":"social"|"chat_memory"|"product_capability"|"document"|"outside_scope","standalone_query":string|null}'
+          '{"intent":"social"|"chat_memory"|"product_capability"|"document","standalone_query":string|null}'
         ].join(" ")
       },
       {
@@ -184,7 +182,7 @@ export async function analyzeChatRoute(params: {
       };
     }
 
-    if (parsed.intent === "social" || parsed.intent === "chat_memory" || parsed.intent === "product_capability" || parsed.intent === "outside_scope") {
+    if (parsed.intent === "social" || parsed.intent === "chat_memory" || parsed.intent === "product_capability") {
       return {
         intent: parsed.intent,
         standaloneQuery: null
@@ -192,8 +190,8 @@ export async function analyzeChatRoute(params: {
     }
 
     return {
-      intent: "outside_scope",
-      standaloneQuery: null
+      intent: "document",
+      standaloneQuery: params.currentMessage
     };
   } catch {
     const normalized = params.currentMessage.trim().toLowerCase();

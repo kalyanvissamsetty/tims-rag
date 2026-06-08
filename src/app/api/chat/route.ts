@@ -19,32 +19,7 @@ const chatSchema = z.object({
 
 const MEMORY_WINDOW = 8;
 const fallback = "I don’t have enough information in the uploaded documents to answer that yet.";
-const scopeFallback =
-  "I can help with greetings, this app, and questions about the current chat. For factual or advice questions, I can answer only from the uploaded documents.";
 const TITLE_MIN_MESSAGE_COUNT = 4;
-
-const EXPLICIT_OUTSIDE_SCOPE_PATTERN =
-  /\b(weather|temperature|forecast|rain|sunny|doctor|medical|health|hydration|water intake|symptom|medicine|python|javascript|java|code|coding|program|bug fix|capital of|president|prime minister|stock|crypto|recipe|restaurant|travel|hotel)\b/i;
-
-function looksLikeDocumentLookupQuery(message: string) {
-  const normalized = message.trim();
-
-  if (!normalized || normalized.length > 80) {
-    return false;
-  }
-
-  if (EXPLICIT_OUTSIDE_SCOPE_PATTERN.test(normalized)) {
-    return false;
-  }
-
-  const compact = normalized.replace(/[?!.]/g, "").trim();
-  const wordCount = compact.split(/\s+/).filter(Boolean).length;
-  const acronymOnly = /^[A-Z0-9][A-Z0-9\s/-]{1,20}$/.test(compact);
-  const definitionPrompt = /^(what is|what are|define|meaning of|explain)\s+[a-z0-9][a-z0-9\s/-]{0,40}$/i.test(compact);
-  const nounLookup = wordCount >= 1 && wordCount <= 4 && /^[a-z0-9][a-z0-9\s/-]+$/i.test(compact);
-
-  return acronymOnly || definitionPrompt || nounLookup;
-}
 
 function encodeEvent(payload: Record<string, unknown>) {
   return `${JSON.stringify(payload)}\n`;
@@ -162,16 +137,11 @@ export async function POST(request: Request) {
       currentMessage: body.message
     });
 
-    const effectiveIntent =
-      routeDecision.intent === "outside_scope" && looksLikeDocumentLookupQuery(body.message)
-        ? "document"
-        : routeDecision.intent;
-
     const chunks =
-      effectiveIntent === "document"
+      routeDecision.intent === "document"
         ? await retrieveRelevantChunks(routeDecision.standaloneQuery ?? body.message, settings.top_k)
         : [];
-    const sources: ChatSource[] = effectiveIntent !== "document"
+    const sources: ChatSource[] = routeDecision.intent !== "document"
       ? []
       : Array.from(
           new Map(chunks.map((chunk) => [chunk.file_name, { title: chunk.title, fileName: chunk.file_name }])).values()
@@ -199,21 +169,14 @@ export async function POST(request: Request) {
           try {
             send({ type: "meta", sessionId, sessionTitle, sources });
 
-            if (
-              effectiveIntent === "social" ||
-              effectiveIntent === "chat_memory" ||
-              effectiveIntent === "product_capability"
-            ) {
+            if (routeDecision.intent === "social" || routeDecision.intent === "chat_memory" || routeDecision.intent === "product_capability") {
               answer = await createConversationalAnswer({
                 recentMessages,
                 currentMessage: body.message,
-                intent: effectiveIntent,
+                intent: routeDecision.intent,
                 temperature: settings.temperature
               });
               answer = sanitizeAssistantAnswer(answer);
-              send({ type: "delta", delta: answer });
-            } else if (effectiveIntent === "outside_scope") {
-              answer = sanitizeAssistantAnswer(scopeFallback);
               send({ type: "delta", delta: answer });
             } else if (!chunks.length) {
               answer = sanitizeAssistantAnswer(fallback);
