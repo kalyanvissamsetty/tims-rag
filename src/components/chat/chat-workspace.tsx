@@ -275,7 +275,20 @@ export function ChatWorkspace({
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
+  function shouldKeepComposerFocus() {
+    if (typeof window === "undefined") {
+      return true;
+    }
+
+    return !window.matchMedia("(pointer: coarse)").matches;
+  }
+
   function focusComposer() {
+    if (!shouldKeepComposerFocus()) {
+      textareaRef.current?.blur();
+      return;
+    }
+
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
@@ -880,7 +893,7 @@ export function ChatWorkspace({
                     }}
                     placeholder={disabled ? "Finish environment setup to enable chat." : "Send a message"}
                     rows={1}
-                    className="max-h-44 min-h-[32px] w-full resize-none overflow-y-auto border-0 bg-transparent px-1 py-1 text-[15px] leading-6 focus:border-0 sm:py-1.5 sm:text-base"
+                    className="max-h-44 min-h-[32px] w-full resize-none overflow-y-auto border-0 bg-transparent px-1 py-1 text-base leading-6 focus:border-0 sm:py-1.5"
                   />
                 </div>
                 {loading ? (
