@@ -14,11 +14,11 @@ export function DashboardShell({ profile, children }: { profile: Profile; childr
   const isChatRoute = pathname === "/chat";
 
   return (
-    <div className="h-screen overflow-hidden bg-background">
+    <div className="h-[100dvh] overflow-hidden bg-background">
       {isChatRoute ? (
         <div className="h-full min-h-0">{children}</div>
       ) : (
-        <div className="mx-auto flex h-full max-w-[1600px] gap-0 bg-background">
+        <div className="mx-auto flex h-full max-w-[1600px] gap-0 overflow-hidden bg-background">
           <aside className="hidden w-[278px] shrink-0 border-r border-white/8 bg-[linear-gradient(180deg,rgba(14,20,31,0.98),rgba(9,14,24,0.98))] text-white lg:flex lg:flex-col">
             <div className="border-b border-white/10 px-5 py-5">
               <div className="flex items-center gap-3">
@@ -71,7 +71,7 @@ export function DashboardShell({ profile, children }: { profile: Profile; childr
                 <SignOutButton compact />
               </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+            <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
           </div>
         </div>
       )}

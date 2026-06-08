@@ -29,6 +29,11 @@ type DeleteTarget = {
   title: string;
 };
 
+type RenameTarget = {
+  id: string;
+  title: string;
+};
+
 type Message = ChatMessageRecord & {
   pending?: boolean;
 };
@@ -209,7 +214,9 @@ export function ChatWorkspace({
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [mobileRenameTarget, setMobileRenameTarget] = useState<RenameTarget | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesViewportRef = useRef<HTMLDivElement | null>(null);
@@ -275,12 +282,19 @@ export function ChatWorkspace({
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  function shouldKeepComposerFocus() {
-    if (typeof window === "undefined") {
-      return true;
-    }
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
-    return !window.matchMedia("(pointer: coarse)").matches;
+    const mediaQuery = window.matchMedia("(pointer: coarse)");
+    const sync = () => setIsCoarsePointer(mediaQuery.matches);
+
+    sync();
+    mediaQuery.addEventListener("change", sync);
+    return () => mediaQuery.removeEventListener("change", sync);
+  }, []);
+
+  function shouldKeepComposerFocus() {
+    return !isCoarsePointer;
   }
 
   function focusComposer() {
@@ -292,6 +306,10 @@ export function ChatWorkspace({
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
+  }
+
+  function isMobileView() {
+    return isCoarsePointer;
   }
 
   function startNewChat() {
@@ -474,6 +492,18 @@ export function ChatWorkspace({
   function beginRename(session: Session) {
     setRenamingSessionId(session.id);
     setRenameValue(session.title);
+    setMobileRenameTarget(null);
+    setOpenMenuSessionId(null);
+    setMenuPosition(null);
+  }
+
+  function beginMobileRename(session: Session) {
+    setRenamingSessionId(null);
+    setRenameValue(session.title);
+    setMobileRenameTarget({
+      id: session.id,
+      title: session.title
+    });
     setOpenMenuSessionId(null);
     setMenuPosition(null);
   }
@@ -510,6 +540,7 @@ export function ChatWorkspace({
         )
       );
       setRenamingSessionId(null);
+      setMobileRenameTarget(null);
       setRenameValue("");
       toast.success("Conversation renamed.");
     } catch (error) {
@@ -519,6 +550,7 @@ export function ChatWorkspace({
 
   function cancelRename() {
     setRenamingSessionId(null);
+    setMobileRenameTarget(null);
     setRenameValue("");
   }
 
@@ -582,6 +614,17 @@ export function ChatWorkspace({
       top: Math.min(rect.top, window.innerHeight - menuHeight - 12),
       left: Math.min(rect.right + 8, window.innerWidth - menuWidth - 12)
     });
+  }
+
+  function openSessionActionsForCurrent(event: React.MouseEvent<HTMLButtonElement>) {
+    if (!selectedSessionId) return;
+    toggleSessionMenu(selectedSessionId, event);
+  }
+
+  function loadSessionOnMobile(sessionId: string) {
+    if (loading || switchingSessions) return;
+    setMobileSidebarOpen(false);
+    void loadSession(sessionId);
   }
 
   function renderSidebar(isMobile = false) {
@@ -653,23 +696,31 @@ export function ChatWorkspace({
                     <>
                       <button
                         type="button"
-                        disabled={loading || switchingSessions}
-                        onClick={() => loadSession(session.id)}
+                        disabled={switchingSessions}
+                        onClick={() => {
+                          if (isMobile) {
+                            loadSessionOnMobile(session.id);
+                            return;
+                          }
+                          void loadSession(session.id);
+                        }}
                         className="min-w-0 flex-1 text-left"
                       >
                         <p className="text-sm font-medium text-white">{truncate(session.title, isMobile ? 22 : 26)}</p>
                         <p className="mt-1 text-xs text-white/45">{formatDate(session.updated_at)}</p>
                       </button>
-                      <button
-                        type="button"
-                        aria-label="Conversation options"
-                        onClick={(event) => toggleSessionMenu(session.id, event)}
-                        className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white/55 transition hover:bg-white/10 hover:text-white ${
-                          openMenuSessionId === session.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                        }`}
-                      >
-                        <Ellipsis className="h-4 w-4" />
-                      </button>
+                      {!isMobile && !isCoarsePointer ? (
+                        <button
+                          type="button"
+                          aria-label="Conversation options"
+                          onClick={(event) => toggleSessionMenu(session.id, event)}
+                          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white/55 transition hover:bg-white/10 hover:text-white ${
+                            openMenuSessionId === session.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                          }`}
+                        >
+                          <Ellipsis className="h-4 w-4" />
+                        </button>
+                      ) : null}
                     </>
                   )}
                 </div>
@@ -740,6 +791,17 @@ export function ChatWorkspace({
               </Button>
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">TIMS AI Chat</p>
             </div>
+            {selectedSessionId && isCoarsePointer ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-2xl"
+                onClick={openSessionActionsForCurrent}
+              >
+                <Ellipsis className="h-4 w-4" />
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -928,7 +990,11 @@ export function ChatWorkspace({
             onClick={() => {
               const session = sessions.find((item) => item.id === openMenuSessionId);
               if (session) {
-                beginRename(session);
+                if (isMobileView()) {
+                  beginMobileRename(session);
+                } else {
+                  beginRename(session);
+                }
               }
             }}
             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-[13px] text-white transition hover:bg-white/8"
@@ -945,6 +1011,43 @@ export function ChatWorkspace({
             <Trash2 className="h-3.5 w-3.5" />
             <span>Delete</span>
           </button>
+        </div>
+      ) : null}
+
+      {mobileRenameTarget && isCoarsePointer ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-[360px] rounded-[22px] border border-white/8 bg-[#262626] px-5 py-5 text-white shadow-[0_24px_72px_rgba(0,0,0,0.42)]">
+            <h3 className="text-[18px] font-medium tracking-tight text-white">Rename chat</h3>
+            <p className="mt-2 text-[13px] leading-6 text-white/62">
+              Update the conversation title shown in your chat list.
+            </p>
+            <div className="mt-5">
+              <input
+                value={renameValue}
+                onChange={(event) => setRenameValue(event.target.value)}
+                maxLength={60}
+                autoFocus
+                className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-[15px] text-white outline-none transition placeholder:text-white/35 focus:border-primary/50 focus:bg-white/6"
+              />
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-full border-white/10 bg-black px-4 text-[14px] font-medium text-white hover:bg-black/80 hover:text-white"
+                onClick={cancelRename}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="h-10 rounded-full px-4 text-[14px] font-medium"
+                onClick={() => void saveRename(mobileRenameTarget.id)}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
         </div>
       ) : null}
 

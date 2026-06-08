@@ -27,7 +27,8 @@ export default async function AdminPage() {
   const ocrDocuments = typedDocuments.filter((document) => document.metadata?.extraction_method === "ocr").length;
 
   return (
-    <div className="space-y-5 p-3 sm:space-y-6 sm:p-4 lg:p-6">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden p-3 sm:p-4 lg:p-6">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden pr-1 sm:space-y-6">
       {!readiness.adminReady ? <SetupReadinessCard readiness={readiness} /> : null}
 
       <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -56,6 +57,7 @@ export default async function AdminPage() {
       <DocumentUploader disabled={!readiness.uploadReady} />
       <RagSettingsForm settings={settings} disabled={!readiness.chatReady} />
       <DocumentTable documents={typedDocuments} />
+      </div>
     </div>
   );
 }

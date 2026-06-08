@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LogOut } from "lucide-react";
 
@@ -12,6 +12,26 @@ export function SignOutButton({ compact = false, className }: { compact?: boolea
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    if (!confirmOpen || typeof window === "undefined" || !window.matchMedia("(pointer: coarse)").matches) {
+      return;
+    }
+
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousTouchAction = document.body.style.touchAction;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.touchAction = previousTouchAction;
+    };
+  }, [confirmOpen]);
 
   async function handleSignOut() {
     setSigningOut(true);
