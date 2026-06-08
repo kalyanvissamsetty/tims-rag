@@ -26,19 +26,19 @@ export const metadata: Metadata = {
     default: "TIMS AI Studio",
     template: "%s | TIMS AI Studio"
   },
-  description: "Chat with your organization’s trusted documents using a polished, retrieval-first AI workspace built for teams.",
+  description: "Chat with TIMS's trusted documents using a polished, retrieval-first AI workspace built for teams.",
   applicationName: "TIMS AI Studio",
   keywords: ["RAG", "AI chat", "document chat", "knowledge base", "TIMS AI Studio"],
   openGraph: {
     title: "TIMS AI Studio",
-    description: "A retrieval-first AI workspace for chatting with trusted company documents, tables, manuals, and presentations.",
+    description: "Chat with TIMS's trusted documents using a polished, retrieval-first AI workspace built for teams.",
     siteName: "TIMS AI Studio",
     type: "website"
   },
   twitter: {
     card: "summary",
     title: "TIMS AI Studio",
-    description: "Chat with trusted internal documents in a clean, production-ready AI workspace."
+    description: "Chat with TIMS's trusted documents using a polished, retrieval-first AI workspace built for teams."
   },
   icons: {
     icon: [
