@@ -115,6 +115,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       }
 
       if (!data.session) {
+        await supabase.auth.signOut();
         toast.success("Account created. Check your email to confirm your account before signing in.");
         router.push("/login");
         router.refresh();
@@ -129,21 +130,20 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       return;
     }
 
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    await supabase.auth.signOut();
 
-    if (!user?.email_confirmed_at) {
-      console.log("email - " + user?.email_confirmed_at);
-      await supabase.auth.signOut();
-      toast.error("Please confirm your email before signing in.");
-      setLoading(false);
-      return;
-    }
-    
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const {
+      data: { user },
+      error
+    } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
+      if (/email not confirmed|email address not authorized|confirm your email/i.test(error.message)) {
+        toast.error("Please confirm your email before signing in.");
+        setLoading(false);
+        return;
+      }
+
       if (/invalid login credentials/i.test(error.message)) {
         try {
           const response = await fetch("/api/auth/account-status", {
@@ -170,7 +170,6 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       return;
     }
 
-    
     let destination = "/chat";
     if (user?.id) {
       const { data: profile } = await supabase
