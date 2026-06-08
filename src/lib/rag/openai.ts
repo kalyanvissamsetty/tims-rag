@@ -154,6 +154,8 @@ export async function analyzeChatRoute(params: {
           "Classify as chat_memory only for questions explicitly about previous messages in this same conversation.",
           "Classify as product_capability only for questions about this app's features, limits, uploads, settings, chat behavior, or admin workflow.",
           "Classify as document for factual questions that should be answered from uploaded documents, even if phrased casually.",
+          "Very important: short domain lookups such as acronyms, component names, definitions, or topic terms like 'What is AIC', 'What is elbow', or 'What is pipeline' should default to document, not outside_scope.",
+          "If the latest message could reasonably be a document-term lookup and it is not explicitly about weather, health, coding, law, recommendations, or general world knowledge, prefer document.",
           "Classify as outside_scope for general world knowledge, weather, health, coding help, legal advice, recommendations, calculations, or topic follow-ups that are not about the app, not about chat memory, and not supported by uploaded documents yet.",
           "Do not treat a user-provided fact about the outside world as making that topic in-scope. Follow-up advice about such topics is still outside_scope.",
           "If the intent is document, rewrite the latest message into a standalone retrieval query using conversation history only to resolve references.",
