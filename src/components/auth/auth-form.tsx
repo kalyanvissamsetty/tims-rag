@@ -177,13 +177,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         .select("role")
         .eq("id", user.id)
         .maybeSingle();
-
-      if (profile?.role === "admin") {
-        destination = "/admin";
-      }
     }
 
-    setRedirectMessage(destination === "/admin" ? "Opening admin workspace..." : "Opening your workspace...");
+    setRedirectMessage("Opening your workspace...");
     toast.success("Signed in successfully.");
     router.replace(destination);
     router.refresh();
